@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { interval, Subject } from "rxjs";
-import { takeUntil } from "rxjs/operators";
+
+import { interval, Subject, fromEvent } from "rxjs";
+import { takeUntil, debounceTime, map, buffer, filter } from "rxjs/operators";
 
 export default function App() {
   const [sec, setSec] = useState(0);
   const [status, setStatus] = useState("stop");
-  const [timer, setTimer] = useState(0);
 
   useEffect(() => {
     const unsubscribe$ = new Subject();
@@ -35,16 +35,17 @@ export default function App() {
     setSec(0);
   }, []);
 
-  const isDoubleClick = useCallback(() => {
-    const timeNow = new Date().getTime();
-
-    const isFastDoubleClick = timeNow - timer < 300;
-    setTimer(timeNow);
-
-    if (isFastDoubleClick) {
+  const handleWait = useCallback((e) => {
+    const click$ = fromEvent(e.target, e.type);
+    const doubleClick$ = click$.pipe(
+      buffer(click$.pipe(debounceTime(300))),
+      map((clicks) => clicks.length),
+      filter((clicksLength) => clicksLength >= 2)
+    );
+    doubleClick$.subscribe(() => {
       setStatus("wait");
-    }
-  }, [timer]);
+    });
+  }, []);
 
   return (
     <div>
@@ -63,7 +64,7 @@ export default function App() {
             Stop
           </button>
           <button onClick={reset}>Reset</button>
-          <button onClick={isDoubleClick}>Wait</button>
+          <button onClick={handleWait}>Wait</button>
         </div>
       </div>{" "}
     </div>
